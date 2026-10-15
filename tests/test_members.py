@@ -148,7 +148,15 @@ def test_list_members_returns_page(client, api_key):
     assert body["limit"] == 5
     assert body["offset"] == 0
     assert body["total"] >= 1
-    assert any(item["id"] == created["id"] for item in body["items"])
+    assert len(body["items"]) <= 5
+
+    seen: set[int] = set()
+    offset = 0
+    while offset < body["total"]:
+        page = client.get("/members", params={"limit": 100, "offset": offset}).json()
+        seen.update(item["id"] for item in page["items"])
+        offset += 100
+    assert created["id"] in seen
 
 
 def test_list_members_respects_limit_and_offset(client, api_key):
@@ -157,7 +165,7 @@ def test_list_members_respects_limit_and_offset(client, api_key):
     everything = client.get("/members", params={"limit": 100, "offset": 0}).json()
     ids = [item["id"] for item in everything["items"]]
     assert len(ids) >= 2
-    assert everything["total"] == len(ids)
+    assert everything["total"] >= len(ids)
 
     first_page = client.get("/members", params={"limit": 1, "offset": 0}).json()
     second_page = client.get("/members", params={"limit": 1, "offset": 1}).json()
