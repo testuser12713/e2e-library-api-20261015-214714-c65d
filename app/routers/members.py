@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.deps import Pagination, get_db, pagination, require_api_key
-from app.errors import LibraryError
 from app.schemas import DeletedResponse, MemberCreate, MemberRead, MemberUpdate, Page
+from app.services import members as members_service
 
 router = APIRouter(tags=["members"])
 
@@ -17,7 +17,13 @@ def list_members(
     page: Pagination = Depends(pagination),
     db: Session = Depends(get_db),
 ) -> Page[MemberRead]:
-    raise LibraryError(501, "not_implemented", "Listing members is not implemented yet.")
+    members, total = members_service.list_members(db, limit=page.limit, offset=page.offset)
+    return Page[MemberRead](
+        items=[MemberRead.model_validate(member) for member in members],
+        total=total,
+        limit=page.limit,
+        offset=page.offset,
+    )
 
 
 @router.post("/members", response_model=MemberRead, status_code=201)
@@ -26,7 +32,8 @@ def create_member(
     db: Session = Depends(get_db),
     _: None = Depends(require_api_key),
 ) -> MemberRead:
-    raise LibraryError(501, "not_implemented", "Creating members is not implemented yet.")
+    member = members_service.create_member(db, data)
+    return MemberRead.model_validate(member)
 
 
 @router.get("/members/{member_id}", response_model=MemberRead)
@@ -34,7 +41,8 @@ def get_member(
     member_id: int,
     db: Session = Depends(get_db),
 ) -> MemberRead:
-    raise LibraryError(501, "not_implemented", "Reading a member is not implemented yet.")
+    member = members_service.get_member(db, member_id)
+    return MemberRead.model_validate(member)
 
 
 @router.put("/members/{member_id}", response_model=MemberRead)
@@ -44,7 +52,8 @@ def update_member(
     db: Session = Depends(get_db),
     _: None = Depends(require_api_key),
 ) -> MemberRead:
-    raise LibraryError(501, "not_implemented", "Updating a member is not implemented yet.")
+    member = members_service.update_member(db, member_id, data)
+    return MemberRead.model_validate(member)
 
 
 @router.delete("/members/{member_id}", response_model=DeletedResponse)
@@ -53,4 +62,5 @@ def delete_member(
     db: Session = Depends(get_db),
     _: None = Depends(require_api_key),
 ) -> DeletedResponse:
-    raise LibraryError(501, "not_implemented", "Deleting a member is not implemented yet.")
+    members_service.delete_member(db, member_id)
+    return DeletedResponse(id=member_id)
