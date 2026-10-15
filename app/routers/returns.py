@@ -6,8 +6,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.deps import get_db, require_api_key
-from app.errors import LibraryError
+from app.models import Loan
 from app.schemas import LoanRead
+from app.services.returns import return_loan as return_loan_service
 
 router = APIRouter(tags=["loans"])
 
@@ -17,5 +18,5 @@ def return_loan(
     loan_id: int,
     db: Session = Depends(get_db),
     _: None = Depends(require_api_key),
-) -> LoanRead:
-    raise LibraryError(501, "not_implemented", "Returning loans is not implemented yet.")
+) -> Loan:
+    return return_loan_service(db, loan_id)
