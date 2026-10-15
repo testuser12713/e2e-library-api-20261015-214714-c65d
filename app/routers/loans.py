@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.deps import get_db, require_api_key
-from app.errors import LibraryError
 from app.schemas import LoanCreate, LoanRead
+from app.services.loans import create_loan as create_loan_service
 
 router = APIRouter(tags=["loans"])
 
@@ -18,4 +18,5 @@ def create_loan(
     db: Session = Depends(get_db),
     _: None = Depends(require_api_key),
 ) -> LoanRead:
-    raise LibraryError(501, "not_implemented", "Creating loans is not implemented yet.")
+    """Create a loan of a book copy to a member."""
+    return create_loan_service(db, data.book_id, data.member_id)
