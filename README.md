@@ -60,8 +60,9 @@ Die Beispieldatei `.env.example` nennt nur `LIBRARY_API_KEY` ohne Wert.
 
 Die API ist unter `http://127.0.0.1:8000` erreichbar. Die interaktive Dokumentation
 liegt unter `/docs`, das OpenAPI-Schema unter `/openapi.json`. GET-Endpunkte sind
-ohne Schlüssel erreichbar; für POST, PUT und DELETE ist der Header
-`X-API-Key: <LIBRARY_API_KEY>` nötig. Fehlerantworten haben immer die Form
+ohne Schlüssel erreichbar; für POST, PUT und DELETE muss der Header `X-API-Key`
+mit dem Wert der Umgebungsvariablen `LIBRARY_API_KEY` mitgeschickt werden.
+Fehlerantworten haben immer die Form
 `{"error": {"code": "...", "message": "...", "details": [...] }}`.
 
 ### Endpunkte
@@ -97,26 +98,18 @@ Beispiel für ein Buch:
 }
 ```
 
-Beispiel für eine schreibende Anfrage (der Schlüssel wird aus der
-Umgebungsvariablen `LIBRARY_API_KEY` gelesen, nie im Quelltext hinterlegt):
+Beispiel für den JSON-Body einer schreibenden Anfrage. Zusätzlich muss der Aufruf
+den im Abschnitt „Verwendung“ beschriebenen API-Key-Header mit dem Wert aus der
+Umgebungsvariablen `LIBRARY_API_KEY` senden; der Schlüssel steht nie im Quelltext:
 
-```python
-import os
-
-import httpx
-
-response = httpx.post(
-    "http://127.0.0.1:8000/books",
-    headers={"X-API-Key": os.environ["LIBRARY_API_KEY"]},
-    json={
-        "title": "Harry Potter",
-        "author": "J. K. Rowling",
-        "isbn": "978-0747532699",
-        "year": 1997,
-        "copies_total": 3,
-    },
-)
-print(response.status_code, response.json())
+```json
+{
+  "title": "Harry Potter",
+  "author": "J. K. Rowling",
+  "isbn": "978-0747532699",
+  "year": 1997,
+  "copies_total": 3
+}
 ```
 
 ### Fehlercodes
