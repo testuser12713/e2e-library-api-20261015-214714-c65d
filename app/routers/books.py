@@ -1,15 +1,13 @@
-"""Book endpoints. Bodies are stubs until the book CRUD ticket lands."""
+"""Book endpoints: POST/GET/PUT/DELETE wired to the book service."""
 
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from ..deps import Pagination, get_db, pagination, require_api_key
-from ..errors import LibraryError
 from ..schemas import BookCreate, BookRead, BookUpdate, DeletedResponse, Page
+from ..services import books as books_service
 
 router = APIRouter(tags=["books"])
-
-_NOT_IMPLEMENTED = "book CRUD is implemented by a later ticket"
 
 
 @router.post("/books", response_model=BookRead, status_code=status.HTTP_201_CREATED)
@@ -18,7 +16,8 @@ def create_book(
     db: Session = Depends(get_db),
     _api_key: None = Depends(require_api_key),
 ) -> BookRead:
-    raise LibraryError(status_code=501, code="not_implemented", message=_NOT_IMPLEMENTED)
+    book = books_service.create_book(db, data)
+    return BookRead.model_validate(book)
 
 
 @router.get("/books", response_model=Page[BookRead])
@@ -27,12 +26,19 @@ def list_books(
     page: Pagination = Depends(pagination),
     db: Session = Depends(get_db),
 ) -> Page[BookRead]:
-    raise LibraryError(status_code=501, code="not_implemented", message=_NOT_IMPLEMENTED)
+    items, total = books_service.list_books(db, q=q, limit=page.limit, offset=page.offset)
+    return Page[BookRead](
+        items=[BookRead.model_validate(book) for book in items],
+        total=total,
+        limit=page.limit,
+        offset=page.offset,
+    )
 
 
 @router.get("/books/{book_id}", response_model=BookRead)
 def get_book(book_id: int, db: Session = Depends(get_db)) -> BookRead:
-    raise LibraryError(status_code=501, code="not_implemented", message=_NOT_IMPLEMENTED)
+    book = books_service.get_book(db, book_id)
+    return BookRead.model_validate(book)
 
 
 @router.put("/books/{book_id}", response_model=BookRead)
@@ -42,7 +48,8 @@ def update_book(
     db: Session = Depends(get_db),
     _api_key: None = Depends(require_api_key),
 ) -> BookRead:
-    raise LibraryError(status_code=501, code="not_implemented", message=_NOT_IMPLEMENTED)
+    book = books_service.update_book(db, book_id, data)
+    return BookRead.model_validate(book)
 
 
 @router.delete("/books/{book_id}", response_model=DeletedResponse)
@@ -51,4 +58,5 @@ def delete_book(
     db: Session = Depends(get_db),
     _api_key: None = Depends(require_api_key),
 ) -> DeletedResponse:
-    raise LibraryError(status_code=501, code="not_implemented", message=_NOT_IMPLEMENTED)
+    books_service.delete_book(db, book_id)
+    return DeletedResponse(id=book_id)
