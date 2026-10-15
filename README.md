@@ -11,7 +11,7 @@ manuelle Einrichtung nötig ist.
 
 ## Tech-Stack
 
-- **Sprache:** Python 3.13
+- **Sprache:** Python 3.12
 - **Webframework:** FastAPI mit Uvicorn als Server
 - **Validierung:** Pydantic v2
 - **ORM:** SQLAlchemy 2.0 (typed Declarative)
@@ -97,13 +97,26 @@ Beispiel für ein Buch:
 }
 ```
 
-Beispiel für eine schreibende Anfrage:
+Beispiel für eine schreibende Anfrage (der Schlüssel wird aus der
+Umgebungsvariablen `LIBRARY_API_KEY` gelesen, nie im Quelltext hinterlegt):
 
-```bash
-curl -X POST http://127.0.0.1:8000/books \
-  -H "X-API-Key: mein-geheimer-schluessel" \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Harry Potter","author":"J. K. Rowling","isbn":"978-0747532699","year":1997,"copies_total":3}'
+```python
+import os
+
+import httpx
+
+response = httpx.post(
+    "http://127.0.0.1:8000/books",
+    headers={"X-API-Key": os.environ["LIBRARY_API_KEY"]},
+    json={
+        "title": "Harry Potter",
+        "author": "J. K. Rowling",
+        "isbn": "978-0747532699",
+        "year": 1997,
+        "copies_total": 3,
+    },
+)
+print(response.status_code, response.json())
 ```
 
 ### Fehlercodes
