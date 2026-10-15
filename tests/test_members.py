@@ -8,6 +8,7 @@ touches the development database or starts a server.
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from sqlalchemy import func, select
 
 from app.models import Book, Loan, Member
@@ -51,19 +52,44 @@ def _seed_book(session) -> Book:
     return book
 
 
-def _seed_loan(session, member_id: int, *, returned: bool) -> Loan:
-    book = _seed_book(session)
-    now = datetime.now(UTC).replace(tzinfo=None)
-    loan = Loan(
-        book_id=book.id,
-        member_id=member_id,
-        loaned_at=now - timedelta(days=20),
-        due_at=now - timedelta(days=6),
-        returned_at=now - timedelta(days=3) if returned else None,
-    )
-    session.add(loan)
+@pytest.fixture
+def seed_loan(session):
+    """Seed a loan for the delete guard and remove every seeded row again.
+
+    The test database is shared by the whole suite, so the rows this fixture
+    writes (book and loan) are deleted at teardown; otherwise the open overdue
+    loan would leak into the overdue ticket's tests.
+    """
+    loan_ids: list[int] = []
+    book_ids: list[int] = []
+
+    def _seed(member_id: int, *, returned: bool) -> Loan:
+        book = _seed_book(session)
+        now = datetime.now(UTC).replace(tzinfo=None)
+        loan = Loan(
+            book_id=book.id,
+            member_id=member_id,
+            loaned_at=now - timedelta(days=20),
+            due_at=now - timedelta(days=6),
+            returned_at=now - timedelta(days=3) if returned else None,
+        )
+        session.add(loan)
+        session.commit()
+        loan_ids.append(loan.id)
+        book_ids.append(book.id)
+        return loan
+
+    yield _seed
+
+    for loan_id in loan_ids:
+        loan = session.get(Loan, loan_id)
+        if loan is not None:
+            session.delete(loan)
+    for book_id in book_ids:
+        book = session.get(Book, book_id)
+        if book is not None:
+            session.delete(book)
     session.commit()
-    return loan
 
 
 def test_create_member_defaults_member_since_to_today(client, api_key):
@@ -207,17 +233,17 @@ def test_update_member_explicit_null_is_validation_error(client, api_key):
         assert error["details"]
 
 
-def test_delete_member_with_open_loan_is_conflict(client, session, api_key):
+def test_delete_member_with_open_loan_is_conflict(client, seed_loan, api_key):
     created = _create_member(client, api_key)
-    _seed_loan(session, created["id"], returned=False)
+    seed_loan(created["id"], returned=False)
     response = client.delete(f"/members/{created['id']}", headers={"X-API-Key": api_key})
     assert response.status_code == 409
     assert _error_payload(response.json())["code"] == "conflict"
 
 
-def test_delete_member_with_returned_loan_is_conflict(client, session, api_key):
+def test_delete_member_with_returned_loan_is_conflict(client, seed_loan, api_key):
     created = _create_member(client, api_key)
-    _seed_loan(session, created["id"], returned=True)
+    seed_loan(created["id"], returned=True)
     response = client.delete(f"/members/{created['id']}", headers={"X-API-Key": api_key})
     assert response.status_code == 409
     assert _error_payload(response.json())["code"] == "conflict"
